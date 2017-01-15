@@ -7,11 +7,13 @@ template <typename T> class LAVector : public LAMatrix<T>
 	public:
 		// consructors/destructors
 		LAVector() {}
-		LAVector(long m) : LAMatrix(m, 1L) {};
+		LAVector(unsigned n) : LAMatrix(n, 1U) {};
 		LAVector(LAVector <T> &object) : LAMatrix(object){};
 		~LAVector() {}
 		// methods
 		void printArray();
+		void putArrayInFile(std::string filePath);
+		void initVector(unsigned n) { initMatrix(n, 1U); }
 		// operators
 		LAVector<T> operator+(LAVector<T> &right);
 		LAVector<T> operator-(LAVector<T> &right);
@@ -23,11 +25,23 @@ template <typename T> class LAVector : public LAMatrix<T>
 template <typename T>
 void LAVector<T>::printArray()
 {
-	for (long i = 0; i < getRowNum(); ++i)
+	for (unsigned i = 0; i < getRowNum(); ++i)
 	{
-		std::cout << myArray[i] << std::endl;
+		std::cout << std::fixed << std::setprecision(15) << myArray[i] << std::endl;
 	}
 	return;
+}
+
+template<typename T>
+inline void LAVector<T>::putArrayInFile(std::string filePath)
+{
+	std::ofstream matrFile(filePath, std::ios::app);
+	matrFile << "Vector B, rows: " << rowNum << std::endl;
+	for (unsigned i = 0; i < rowNum; ++i)
+	{
+		matrFile << i + 1 << " " << std::fixed << std::setprecision(15) << myArray[i] << std::endl;
+	}
+	matrFile.close();
 }
 
 template<typename T>
@@ -42,7 +56,7 @@ LAVector<T> LAVector<T>::operator+(LAVector<T> &right)
 		else
 		{
 			LAVector<T> temp(this->getRowNum());
-			for (long i = 0; i < temp.getRowNum(); ++i)
+			for (unsigned i = 0; i < temp.getRowNum(); ++i)
 			{
 				temp.myArray[i] = this->myArray[i] + right.myArray[i];
 			}
@@ -68,7 +82,7 @@ LAVector<T> LAVector<T>::operator-(LAVector<T> &right)
 		else
 		{
 			LAVector<T> temp(this->getRowNum());
-			for (long i = 0; i < temp.getRowNum(); ++i)
+			for (unsigned i = 0; i < temp.getRowNum(); ++i)
 			{
 				temp.myArray[i] = this->myArray[i] - right.myArray[i];
 			}
@@ -94,7 +108,7 @@ T LAVector<T>::operator*(LAVector<T> &right)
 		else
 		{
 			T temp = (T)0.;
-			for (long i = 0; i < this->getRowNum(); ++i)
+			for (unsigned i = 0; i < this->getRowNum(); ++i)
 			{
 				temp += this->myArray[i] * right.myArray[i];
 			}
@@ -118,7 +132,7 @@ inline LAVector<T> LAVector<T>::operator=(LAVector<T>& right)
 		delete[](this->myArray);
 	}
 	this->myArray = new T[this->getRowNum()];
-	for (long i = 0; i < this->getRowNum(); ++i)
+	for (unsigned i = 0; i < this->getRowNum(); ++i)
 	{
 		this->myArray[i] = right.myArray[i];
 	}
@@ -137,9 +151,9 @@ inline LAVector<U> operator*(LAMatrix<U>& left, LAVector<U>& right)
 		else
 		{
 			LAVector<U> temp(left.getRowNum());
-			for (long i = 0; i < temp.getRowNum(); ++i)
+			for (unsigned i = 0; i < temp.getRowNum(); ++i)
 			{
-				for (long j = 0; j < right.getRowNum(); ++j)
+				for (unsigned j = 0; j < right.getRowNum(); ++j)
 				{
 					temp.myArray[i] += left.myArray[j + i * left.getRowNum()] * right.myArray[j];
 				}

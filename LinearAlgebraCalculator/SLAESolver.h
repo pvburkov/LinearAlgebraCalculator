@@ -1,10 +1,10 @@
 #pragma once
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <random>
 #include <sstream>
 #include <string>
-#include <exception>
 #include "LAMatrix.h"
 #include "LAVector.h"
 
@@ -14,7 +14,7 @@ void getRandomMatrix(LAMatrix <double> &matrix, double min, double max)
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution <double> dist(min, max);
 
-	for (long i = 0; i < matrix.getColNum() * matrix.getRowNum(); ++i)
+	for (unsigned i = 0; i < matrix.getColNum() * matrix.getRowNum(); ++i)
 	{
 		do
 		{
@@ -37,37 +37,37 @@ void getMatrixFromMM(LAMatrix <double> &matrix, std::string filePath)
 		std::string num;
 		switch (i)
 		{
-		case 0:
-			break;
-		case 1:
-			while (isstr >> num)
-			{
-				matrParams.push_back(std::stoi(num));
-			}
-			matrix.initMatrix(matrParams[0], matrParams[1]);
-			matrParams.clear();
-			break;
-		default:
-			int j = 0;
-			double value;
-			while (isstr >> num)
-			{
-				if (j < 2)
+			case 0:
+				break;
+			case 1:
+				while (isstr >> num)
 				{
 					matrParams.push_back(std::stoi(num));
 				}
-				else
-				{
-					value = std::stod(num);
-				}
-				++j;
-			}
-			if (!matrParams.empty())
-			{
-				matrix[(matrParams[0] - 1) * matrix.getRowNum() + matrParams[1] - 1] = value;
+				matrix.initMatrix(matrParams[0], matrParams[1]);
 				matrParams.clear();
-			}
-			break;
+				break;
+			default:
+				int j = 0;
+				double value;
+				while (isstr >> num)
+				{
+					if (j < 2)
+					{
+						matrParams.push_back(std::stoi(num));
+					}
+					else
+					{
+						value = std::stod(num);
+					}
+					++j;
+				}
+				if (!matrParams.empty())
+				{
+					matrix[(matrParams[0] - 1) * matrix.getRowNum() + matrParams[1] - 1] = value;
+					matrParams.clear();
+				}
+				break;
 		}
 		++i;
 	}
@@ -75,14 +75,107 @@ void getMatrixFromMM(LAMatrix <double> &matrix, std::string filePath)
 	return;
 }
 
-void getWilkinsonMatrix(LAMatrix <double> &matrix)
+void getSLAEFromFile(LAMatrix <double> &matrixA, LAVector <double> &vectorB, std::string filePath)
 {
-	matrix.initMatrix(2, 2);
-	matrix[0] = 0.780;
-	matrix[1] = 0.563;
-	matrix[2] = 0.913;
-	matrix[3] = 0.659;
+	std::ifstream matrFile(filePath);
+	std::string str;
+	int strNum = -1;
+	std::array <unsigned, 2> matrParams;
+	char dataType = 'n';
+
+	while (!matrFile.eof())
+	{
+		std::getline(matrFile, str);
+		std::istringstream isstr(str);
+		std::string num;
+		if (str.find("End") != std::string::npos)
+		{
+			if (str.find("Matrix") != std::string::npos)
+			{
+				dataType = 'V';
+				strNum = -1;
+			}
+			continue;
+		}
+		if (str.find("Matrix") != std::string::npos)
+		{
+			dataType = 'M';
+			++strNum;
+			continue;
+		}
+		if (str.find("Vector") != std::string::npos)
+		{
+			++strNum;
+			continue;
+		}
+		switch (strNum)
+		{
+			case 0:
+				if (dataType == 'M')
+				{
+					isstr >> num;
+					matrParams[0] = (unsigned)std::stoi(num);
+					isstr >> num;
+					matrParams[1] = (unsigned)std::stoi(num);
+					matrixA.initMatrix(matrParams[0], matrParams[1]);
+				}
+				else
+				{
+					isstr >> num;
+					matrParams[0] = (unsigned)std::stoi(num);
+					vectorB.initVector(matrParams[0]);
+				}
+				break;
+			default:
+				unsigned i, j;
+				double value;
+				if (dataType == 'M')
+				{
+					isstr >> num;
+					i = (unsigned)std::stoi(num);
+					isstr >> num;
+					j = (unsigned)std::stoi(num);
+					isstr >> num;
+					value = std::stod(num);
+					matrixA[(i - 1) * matrixA.getRowNum() + j - 1] = value;
+				}
+				else
+				{
+					isstr >> num;
+					i = (unsigned)std::stoi(num);
+					isstr >> num;
+					value = std::stod(num);
+					vectorB[i - 1] = value;
+				}
+				break;
+		}
+		++strNum;
+	}
+	matrFile.close();
 	return;
+}
+
+void getWilkinsonSLAE(LAMatrix <double> &matrixA, LAVector <double> &vectorB)
+{
+	matrixA.initMatrix(2, 2);
+	matrixA[0] = 0.780;
+	matrixA[1] = 0.563;
+	matrixA[2] = 0.913;
+	matrixA[3] = 0.659;
+	vectorB.initVector(2);
+	vectorB[0] = 0.217;
+	vectorB[1] = 0.254;
+	return;
+}
+
+void getHilbertSLAE(LAMatrix <double> &matrixA, LAVector <double> &vectorB)
+{
+	getSLAEFromFile(matrixA, vectorB, "hilbert.slae");
+}
+
+void getWohmintsevSLAE(LAMatrix <double> &matrixA, LAVector <double> &vectorB)
+{
+	getSLAEFromFile(matrixA, vectorB, "wohmintsev.slae");
 }
 
 void LUTransformGauss(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <double> &U)
@@ -98,10 +191,14 @@ void LUTransformGauss(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <doub
 		exit(201);
 	}
 
-	long N = A.getRowNum();
+	unsigned N = A.getRowNum();
 	L.initMatrix(N, N);
+	for (unsigned i = 0; i < N; ++i)
+	{
+		L[i * N + i] = 1.;
+	}
 	U.initMatrix(N, N);
-	long i, j, k;
+	unsigned i, j, k;
 	for (j = 0; j < N; ++j)
 	{
 		U[j] = A[j];
@@ -112,7 +209,7 @@ void LUTransformGauss(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <doub
 	}
 	for (i = 1; i < N; ++i)
 	{
-		for (j = i; N; ++j)
+		for (j = i; j < N; ++j)
 		{
 			U[j + i * N] = A[j + i * N];
 			if (j > i)
@@ -127,7 +224,10 @@ void LUTransformGauss(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <doub
 					L[i + j * N] -= L[k + j * N] * U[i + k * N];
 				}
 			}
-			L[i + j * N] /= U[i + i * N];
+			if (j > i)
+			{
+				L[i + j * N] /= U[i + i * N];
+			}
 		}
 	}
 }
@@ -145,10 +245,14 @@ void LUTransformCrout(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <doub
 		exit(201);
 	}
 
-	long N = A.getRowNum();
+	unsigned N = A.getRowNum();
 	L.initMatrix(N, N);
 	U.initMatrix(N, N);
-	long i, j, k;
+	for (unsigned i = 0; i < N; ++i)
+	{
+		U[i * N + i] = 1.;
+	}
+	unsigned i, j, k;
 	for (i = 0; i < N; ++i)
 	{
 		L[i * N] = A[i * N];
@@ -174,7 +278,10 @@ void LUTransformCrout(LAMatrix <double> &A, LAMatrix <double> &L, LAMatrix <doub
 					U[i + j * N] -= L[k + j * N] * U[i + k * N];
 				}
 			}
-			U[i + j * N] /= L[j + j * N];
+			if (i > j)
+			{
+				U[i + j * N] /= L[j + j * N];
+			}
 		}
 	}
 }
@@ -263,7 +370,88 @@ void AccurateLUTransform(LAMatrix <double> &A)
 			varUnew[i] = varU[i] - lambda * gradFU[i];
 		}
 
-		// TODO: 1. Тесты LU Гаусса и Краута
-		// TODO: 2. Тест метода уточнения LU (прогонка для разных вариантов лямбды)
+		// 3.3. 
+		LAMatrix <double> tempL(N, N), tempU(N, N), tempDiff(N, N);
+		for (unsigned i = 0; i < varL.size(); ++i)
+		{
+			tempL[indexLi[i] * N + indexLj[i]] = varLnew[i];
+		}
+		for (unsigned i = 0; i < varU.size(); ++i)
+		{
+			tempU[indexUi[i] * N + indexUj[i]] = varUnew[i];
+		}
+		tempDiff = tempL * tempU;
+		tempDiff = A - tempDiff;
+		for (unsigned i = 0; i < N * N; ++i)
+		{
+			tempDiff[i] *= tempDiff[i];
+		}
+
+		// 3.4.
+		tempDiff.printArray();
+		std::cout << std::endl;
+
+		// 4.
+		for (unsigned i = 0; i < varL.size(); ++i)
+		{
+			varL[i] = varLnew[i];
+		}
+		for (unsigned i = 0; i < varU.size(); ++i)
+		{
+			varU[i] = varUnew[i];
+		}
+		lambda *= 0.75;
+		varL.clear();
+		varU.clear();
+		varLnew.clear();
+		varUnew.clear();
+		gradFL.clear();
+		gradFU.clear();
+		indexLi.clear();
+		indexLj.clear();
+		indexUi.clear();
+		indexUj.clear();
 	}
+}
+
+LAVector <double> SLAESolverLU(LAMatrix <double> &A, LAVector <double> &B)
+{
+	unsigned N = A.getRowNum();
+	LAMatrix <double> L, U;
+	LAVector <double> X(N), Y(N);
+	
+	// 1. Получаем LU-разложение матрицы A
+	LUTransformGauss(A, L, U);
+
+	// 2. Решаем СЛАУ LY=B (метод последовательного исключения переменных сверху вниз)
+	for (unsigned i = 0; i < N; ++i)
+	{
+		Y[i] = B[i];
+		for (unsigned j = 0; j < i; ++j)
+		{
+			Y[i] -= L[j + i * N] * Y[j];
+		}
+		Y[i] /= L[i + i * N];
+	}
+
+	// 3. Решаем СЛАУ UX=Y (метод последовательного исключения переменных снизу вверх)
+	for (unsigned i = N - 1; i >= 0; --i)
+	{
+		X[i] = Y[i];
+		for (unsigned j = N - 1; j > i; --j)
+		{
+			X[i] -= U[j + i * N] * X[j];
+		}
+		Y[i] /= U[i + i * N];
+		
+		// Дополнительное условие останова: тип unsigned при попытке декремента нуля
+		// переходит к своему максмальному зачеию и код зацикливается, поэтому
+		// для корректной остановки используется явное условие
+		if (i == 0)
+		{
+			break;
+		}
+	}
+
+	return X;
 }
